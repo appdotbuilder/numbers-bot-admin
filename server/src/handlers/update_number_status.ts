@@ -1,23 +1,51 @@
+import { db } from '../db';
+import { l4_numbers } from '../db/schema';
 import { type UpdateNumberStatusInput, type Number } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const updateNumberStatus = async (input: UpdateNumberStatusInput): Promise<Number> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating a number's status for administrative purposes,
-    // such as manually changing it to 'returned_to_queue', 'cancelled', etc.
-    // Should also update the updated_at timestamp and potentially other related fields
-    // based on the new status (e.g., completed_at for 'completed' status).
-    return Promise.resolve({
-        id: input.id,
-        phone_number: 'placeholder_number',
-        country: 'placeholder_country',
-        type: 'placeholder_type',
-        status: input.status,
-        buyer_id: null,
-        seller_id: null,
-        rented_at: null,
-        completed_at: null,
-        price: 0,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as Number);
+  try {
+    // Prepare the update values
+    const updateValues: any = {
+      status: input.status,
+      updated_at: new Date()
+    };
+
+    // Set completed_at timestamp for completed status
+    if (input.status === 'completed') {
+      updateValues.completed_at = new Date();
+    }
+
+    // Clear completed_at for non-completed statuses
+    if (input.status !== 'completed') {
+      updateValues.completed_at = null;
+    }
+
+    // For returned_to_queue and cancelled statuses, clear buyer assignment
+    if (input.status === 'returned_to_queue' || input.status === 'cancelled') {
+      updateValues.buyer_id = null;
+      updateValues.rented_at = null;
+    }
+
+    // Update the number record
+    const result = await db.update(l4_numbers)
+      .set(updateValues)
+      .where(eq(l4_numbers.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Number with id ${input.id} not found`);
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const number = result[0];
+    return {
+      ...number,
+      price: parseFloat(number.price)
+    };
+  } catch (error) {
+    console.error('Number status update failed:', error);
+    throw error;
+  }
 };

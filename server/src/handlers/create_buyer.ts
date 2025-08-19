@@ -1,17 +1,27 @@
+import { db } from '../db';
+import { l4_buyers } from '../db/schema';
 import { type CreateBuyerInput, type Buyer } from '../schema';
 
 export const createBuyer = async (input: CreateBuyerInput): Promise<Buyer> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new buyer and persisting it in the database.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+  try {
+    // Insert buyer record
+    const result = await db.insert(l4_buyers)
+      .values({
         name: input.name,
-        is_banned: false,
-        ban_reason: null,
         mode: input.mode,
         chat_id: input.chat_id,
         max_numbers_per_branch: input.max_numbers_per_branch,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as Buyer);
+        is_banned: false, // Default value
+        ban_reason: null, // Default value
+      })
+      .returning()
+      .execute();
+
+    // Return the created buyer
+    const buyer = result[0];
+    return buyer;
+  } catch (error) {
+    console.error('Buyer creation failed:', error);
+    throw error;
+  }
 };
